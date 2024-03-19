@@ -1,4 +1,3 @@
-// C Program for Message Queue (Reader Process)
 #include <stdio.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
@@ -6,65 +5,77 @@
 #include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
-#define MAX_BYTES 20
 
+#define SUCESS 0
+#define FAILURE -1
+#define MAX_BYTES 50
 
-void saveData(char *nameFile, char *data);
+void save_data(char *nameFile, char *data);
 
-struct mesg_buffer {/* estrutura para a message queue*/
+struct mesg_buffer{
 	long mesg_type;
 	char mesg_text[MAX_BYTES];
-} message;
+}message;
 
 int main(int argc, char** argv)
 {
     key_t key;
-	int msgid, len, dataSize, nPacks,remPacks=0;
     char filename[20], buffer[11];
+	int msgid, len, dataSize, nPacks,remPacks=0;
 
-    if(argc != 2) {
+    if(argc != 2)
+    {
         printf("Execute in this way: ./sender file_out.txt\n");
-        exit(-1);
+        exit(EXIT_FAILURE);
     }
-    strcpy(filename, argv[1]);/*guardar nome do file*/
+    strcpy(filename, argv[1]);
    
-	key = ftok("progfile", 65);/*gerar chave unica*/
+	key = ftok("progfile", 65);
 
-    if((msgid = msgget(key, 0666 | IPC_CREAT))==-1){/*cria message queue e retorna id*/
+    if((msgid = msgget(key, 0666 | IPC_CREAT)) == FAILURE)
+    {
         perror("error creating message queue");
     }
 	
     len = msgrcv(msgid, &message, sizeof(message), 1, 0);
-    dataSize = atoi(message.mesg_text);/*receber a messagem tamanho dos dados do ficheiro*/
+    dataSize = atoi(message.mesg_text);
 
-    if((remPacks = dataSize%MAX_BYTES)!=0){ /*calcular numero de pacotes necessarios*/
+    if( (remPacks = dataSize%MAX_BYTES) != 0)
+    { 
         nPacks = dataSize/MAX_BYTES+1;
-    }else{
+    }else
+    {
         nPacks = dataSize/MAX_BYTES;
     }
 
-    for(int i = 0; i < nPacks; i++){
-        if((len = msgrcv(msgid, &message, sizeof(message), 1, 0)) == -1){
+    for(int i = 0; i < nPacks; i++)
+    {
+        if((len = msgrcv(msgid, &message, sizeof(message), 1, 0)) == FAILURE){
             perror("Error in recvfrom");
         }
         if((remPacks!=0) && (i == (nPacks -1))){
-            strncpy(buffer, message.mesg_text, remPacks); /*pacote com dados inferiores a 10 bytes*/
+            strncpy(buffer, message.mesg_text, remPacks); 
             buffer[remPacks]='\0';
         }else{
             strncpy(buffer, message.mesg_text, MAX_BYTES);
             buffer[MAX_BYTES]='\0';
         }
-        saveData(filename, buffer); /*gravar dados no file*/
+        save_data(filename, buffer); 
     }
+    
 	printf("Receiver: file reception and saving is now complete.\n");
 	msgctl(msgid, IPC_RMID, NULL);
-	return 0;
+
+	return EXIT_SUCCESS;
 }
-void saveData(char *nameFile, char *data){
-    FILE *file = fopen(nameFile,"a");/*abrir ficheiro para escrever*/
-    if( file == NULL){
-      exit(-1);
+
+void save_data(char *nameFile, char *data)
+{
+    FILE *file = fopen(nameFile,"a");
+    if(file == NULL)
+    {
+      exit(EXIT_FAILURE);
     }
-    fprintf(file,"%s",data);//escrever para o ficheiro
-    fclose(file);//fecha o ficheiro
+    fprintf(file,"%s",data);
+    fclose(file);
 }

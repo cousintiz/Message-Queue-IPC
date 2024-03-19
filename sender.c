@@ -5,73 +5,93 @@
 #include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
-#define MAX_BYTES 20
 
-char* data; /*para guardar os dados*/
-void erro(char *msg);
-int getData(char *nameFile, int* _dataSize);
+#define SUCESS 0
+#define FAILURE -1
+#define MAX_BYTES 50
 
-struct mesg_buffer{/* estrutura para a message queue*/
+char* data;
+static void erro(char *msg);
+static int get_data(char *nameFile, int* _dataSize);
+
+struct mesg_buffer{
     long mesg_type;
     char mesg_text[MAX_BYTES];
-} message;
+}message;
 
 int main(int argc, char** argv){
 
     key_t key;
 	int msgid, dataSize, nPacks;
 
-    if(argc != 2) {
+    if(argc != 2) 
+    {
         printf("Execute in this way: ./sender file_in.txt\n");
-        exit(-1);
+        exit(EXIT_FAILURE);
     }
 
-    if(getData(argv[1],&dataSize) == -1)
+    if(get_data(argv[1], &dataSize) == FAILURE)
+    {
         erro("openning file");
-   
-    if((dataSize%MAX_BYTES)!=0){ /*calcular numero de pacotes necessarios*/
+    }
+
+    if((dataSize%MAX_BYTES) != 0)
+    { 
         nPacks = dataSize/MAX_BYTES+1;
     }else{
         nPacks = dataSize/MAX_BYTES;
     }
-    key = ftok("progfile", 65); /*gerar chave unica*/
 
-    if((msgid = msgget(key, 0666 | IPC_CREAT))==-1){/*cria message queue e retorna id*/
+    key = ftok("progfile", 65); 
+    
+    if((msgid = msgget(key, 0666 | IPC_CREAT)) == FAILURE)
+    {
         perror("error creating message queue");
     }
+
     message.mesg_type = 1; 
+    sprintf(message.mesg_text, "%d", dataSize);
 
-    sprintf(message.mesg_text, "%d", dataSize);  
-    if( msgsnd(msgid, &message, sizeof(message), 0)==-1)/*enviar numero de bytes lidos do file*/
+    if( msgsnd(msgid, &message, sizeof(message), 0) == FAILURE)
+    {
         erro("Sending data");
-
-    for(int i = 0; i < nPacks; i++){ /*enviar os bacotes de 10 em 10 bytes*/
-        strncpy(message.mesg_text, data + (i * MAX_BYTES), MAX_BYTES);
-        if(msgsnd(msgid, &message, sizeof(message), 0)==-1)
-            erro("Sending data");
     }
-    free(data); /*libertar a memoria*/
+
+    for(int i = 0; i < nPacks; i++)
+    { 
+        strncpy(message.mesg_text, data + (i * MAX_BYTES), MAX_BYTES);
+        if(msgsnd(msgid, &message, sizeof(message), 0) == FAILURE)
+        {
+            erro("Sending data");
+        }
+    }
+
+    free(data); 
     printf("Sender: file reading and sending is now complete.\n");
-    exit(0);
+    exit(EXIT_SUCCESS);
 }
 
-int getData(char *nameFile, int* _dataSize){
-    FILE *file = fopen(nameFile,"r");/*abrir ficheiro para leitura*/
-    if( file == NULL){
-      return -1;
+static int get_data(char *nameFile, int* _dataSize)
+{
+    FILE *file = fopen(nameFile,"r");
+    if( file == NULL)
+    {
+      return FAILURE;
     }
 
-    fseek(file, 0L, SEEK_END);/*por fptr no fim do file*/
-    *_dataSize = ftell(file);/*obter tamanho do ficheiro*/
+    fseek(file, 0L, SEEK_END);
+    *_dataSize = ftell(file);
     
-    fseek(file, -(*_dataSize), SEEK_CUR);/*voltar a por fptr no inicio*/
-    data = (char*) malloc( (*_dataSize)  * sizeof(char));/*alocar memoria para dados do file*/
-    fread(data, sizeof(char), *_dataSize, file);/*ler ficheiro*/
+    fseek(file, -(*_dataSize), SEEK_CUR);
+    data = (char*) malloc( (*_dataSize)  * sizeof(char));
+    fread(data, sizeof(char), *_dataSize, file);
  
     fclose(file);
-    return 0;
+    return SUCESS;
 }
-void erro(char *msg){
+
+static void erro(char *msg)
+{
     fprintf(stderr, "Error: %s\n", msg);
-    exit(-1);
+    exit(EXIT_FAILURE);
 }
