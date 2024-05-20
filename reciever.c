@@ -21,7 +21,7 @@ int main(int argc, char** argv)
 {
     key_t key;
     char filename[20], buffer[11];
-	int msgid, len, dataSize, nPacks,remPacks=0;
+    int msgid, len, dataSize, nPacks,remPacks=0;
 
     if(argc != 2)
     {
